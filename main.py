@@ -2,8 +2,19 @@
 import discord
 import os
 import logging
+import json
 from discord.ext import commands
 from dotenv import load_dotenv
+
+#Reads from our config file
+with open('config.json', 'r') as config_file:
+	config = json.load(config_file)
+	error_channels = config.get("error_channels",{})
+
+#Function to update error channels in the config file
+def update_config():
+	with open('config.json', 'w') as config_file:
+		json.dump(config, config_file, indent=4)
 
 #Create a Discord Client instance and sets the command prefix
 #Intents in discord help control the data this bot receive
@@ -17,7 +28,10 @@ bot = commands.Bot(command_prefix='mm! ', intents=intents) #Creates a bot with t
 async def on_ready(): #The event when the bot is ready and logged in
 	print(f'Logged in as {bot.user.name}') #Our message telling all that the bot is ready
 
-#Set the commands
+#Bot Commands
+#Setting commands
+
+#Main commands
 @bot.command() #This is a command
 async def greet(ctx): #the "greet" is a response for !greet. ctx allows the context of the command to be displayed where the called command occured
 	response = 'Hello' #this holds the string for the response
@@ -29,11 +43,25 @@ async def list_command(ctx):
 	await ctx.send (response)
 
 #Events
+#Event command error
 @bot.event
 async def on_command_error(ctx, error):
-	error_message = f'Error occured while processing command: {error}'
-	logging.error(error_message)
-	await ctx.send(error_message)
+	server_id = str(ctx.guild.id) #Gets the server error channel
+	error_channel_name = error_channels.get(server_id)
+
+	#If the error channel is not set, then we shall make a new one
+	if not error_channel_id:
+		error_channel_id = ctx.channel.id
+		error_channels[server_id] = error_channel_id
+		update_config()
+
+	#Get or Create the error channel
+	error_channel = ctx.guild.get_channel(error_channel_id)
+	if not error_channel:
+		error_channel = await ctx.guild.create_text_channel("bot-errors")
+
+	#Send the error message
+	await error_channel.send(f"An error occurred: {error}")
 
 #Retrieve token from .env file
 load_dotenv() #Takes our token from the .env file
