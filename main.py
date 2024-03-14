@@ -6,16 +6,6 @@ import json
 from discord.ext import commands
 from dotenv import load_dotenv
 
-#Reads from our config file
-with open('config.json', 'r') as config_file:
-	config = json.load(config_file)
-	error_channels = config.get("error_channels",{})
-
-#Function to update error channels in the config file
-def update_config():
-	with open('config.json', 'w') as config_file:
-		json.dump(config, config_file, indent=4)
-
 #Create a Discord Client instance and sets the command prefix
 #Intents in discord help control the data this bot receive
 #Here we are listening to all events that can happen
@@ -42,26 +32,40 @@ async def list_command(ctx):
 	response = 'A response'
 	await ctx.send (response)
 
+@bot.command()
+async def ban(ctx, member: discord.Member, *, reason=None):
+	#Does user have permissions?
+	if ctx.author.guild_permissions.administrator:
+		if reason:
+			await member.ban(reason=reason)
+			await ctx.send(f"{member.mention} has been banned for: {reason}")
+		else:
+			await ctx.send("Reasoning needed")
+	else:
+		await ctx.send("Permissions Missing")
+
+@bot.command()
+async def unban(ctx, member_id: str, *, reason=None):
+	if ctx.author.guild_permissions.administrator:
+		if reason:
+			await ctx.guild.unban(member_id, reason=reason)
+			await ctx.send(f"{member_id} has been unbanned for {reason}")
+			return
+		else:
+			await ctx.send("Reasoning needed")
+	else:
+		await ctx.send("Permissions Missing")
 #Events
 #Event command error
+ERROR_LOG_CHANNEL_ID = 1217514929586835516
 @bot.event
 async def on_command_error(ctx, error):
-	server_id = str(ctx.guild.id) #Gets the server error channel
-	error_channel_name = error_channels.get(server_id)
-
-	#If the error channel is not set, then we shall make a new one
-	if not error_channel_id:
-		error_channel_id = ctx.channel.id
-		error_channels[server_id] = error_channel_id
-		update_config()
-
-	#Get or Create the error channel
-	error_channel = ctx.guild.get_channel(error_channel_id)
-	if not error_channel:
-		error_channel = await ctx.guild.create_text_channel("bot-errors")
-
-	#Send the error message
-	await error_channel.send(f"An error occurred: {error}")
+	error_log_channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+	if error_log_channel is not None:
+		await error_log_channel.send(f"An error occured in {ctx.guild.name} - {ctx.author.name}: {error}")
+	else:
+		print(f"Channel not found: {ERROR_LOG_CHANNEL_ID}")
+	print(f"An error occurred in {ctx.guild.name} - {ctx.author.name}: {error}")
 
 #Retrieve token from .env file
 load_dotenv() #Takes our token from the .env file
