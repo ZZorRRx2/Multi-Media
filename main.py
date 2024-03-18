@@ -45,11 +45,12 @@ async def ban(ctx, member: discord.Member, *, reason=None):
 		await ctx.send("Permissions Missing")
 
 @bot.command()
-async def unban(ctx, member_id: str, *, reason=None):
+async def unban(ctx, id: int, *, reason=None):
 	if ctx.author.guild_permissions.administrator:
 		if reason:
-			await ctx.guild.unban(member_id, reason=reason)
-			await ctx.send(f"{member_id} has been unbanned for {reason}")
+			user = await bot.fetch_user(id)
+			await ctx.guild.unban(user, reason=reason)
+			await ctx.send(f"{id} has been unbanned for {reason}")
 			return
 		else:
 			await ctx.send("Reasoning needed")
